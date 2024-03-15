@@ -88,10 +88,6 @@ init_simlib ()
   timest (0.0, 0);
 }
 
-void
-list_file (int option, int list)
-{
-
 /* Place transfr into list "list".
    Update timest statistics for the list.
    option = FIRST place at start of list
@@ -99,6 +95,10 @@ list_file (int option, int list)
             INCREASING  place in increasing order on attribute list_rank(list)
             DECREASING  place in decreasing order on attribute list_rank(list)
             (ties resolved by FIFO) */
+void
+list_file (int option, int list)
+{
+
 
   struct master *row=NULL, *ahead, *behind, *ihead, *itail;
   int item, postest;
