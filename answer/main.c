@@ -14,6 +14,7 @@ const float arrivalRateTerminal1 = 14; // 14 per hour
 const float arrivalRateTerminal2 = 10; // 10 per hour
 const float arrivalRateCarRental = 24; // 24 per hour
 const int busCapacity = 30;
+const int busWaitingTime = 5; // 5 minutes;
 
 // bus initially at car rental, next location is terminal 1
 // bus helper variable
@@ -53,8 +54,8 @@ float loadTopRange = 25; // seconds
 #define EVENT_DEPARTURE_TERMINAL_1 8 // passenger depart from terminal 1 using bus to car rental
 #define EVENT_DEPARTURE_TERMINAL_2 9 // passenger depart from terminal 2 using bus to car rental
 #define EVENT_DEPARTURE_CAR_RENTAL 10 // passenger depart from car rental using bus to terminal 1 or terminal 2
-#define EVENT_LOAD_PASSANGER 11 // bus loading passanger
-#define EVENT_UNLOAD_PASSANGER 12 // bus unloading passanger
+#define EVENT_PASSANGER_LOADED 11 // bus passanger X loaded
+#define EVENT_PASSANGER_UNLOADED 12 // bus passanger X unloaded
 
 #define EVENT_END_SIMULATION 13
 
@@ -162,7 +163,18 @@ void arrivalTerminal1(){
     event_schedule(sim_time + expon(meanArrivalTerminal1, STREAM_INTERARRIVAL_TERMINAL_1), EVENT_ARRIVAL_TERMINAL_1);
 
     // get in line
-    list_file(FIRST, LINE_TERMINAL_1);
+    list_file(LAST, LINE_TERMINAL_1);
+
+    // if the bus is there, has enough capacity, and there's no one else on the queue, get in the bus 
+    if(busLocation == TERMINAL_1){
+        if(list_size[LINE_BUS] < busCapacity){
+            list_file(LAST, LINE_BUS);
+            event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADED);
+            // postpone the departure of the bus
+            event_cancel(EVENT_BUS_DEPARTURE);
+            event_schedule(sim_time + busWaitingTime, EVENT_BUS_DEPARTURE);
+        }
+    }
 }
 
 /*
