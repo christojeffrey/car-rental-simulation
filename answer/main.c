@@ -205,7 +205,12 @@ void arrivalTerminal1(){
     TODO: handle passanger arrival at Terminal 2
 */
 void arrivalTerminal2(){
+    // schedule the next arrival
+    event_schedule(sim_time + expon(meanArrivalTerminal2, STREAM_INTERARRIVAL_TERMINAL_2), EVENT_ARRIVAL_TERMINAL_2);
 
+    // get in line
+    transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
+    list_file(LAST, LINE_TERMINAL_2);
 }
 
 /*
@@ -245,10 +250,13 @@ void busArriveAtTerminal1(){
         event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
     }
 
-    // if full or no more passengers, schedule departure
-    // if(list_size[LINE_LOAD] == 0){
+    // wait for at least 5 minutes, allow more passengers to come
+    if (currentNumberOfPassangerInBus() < busCapacity && minTimeToDeparture > sim_time){
+        // during this time, check if there are more passengers coming
+        event_schedule(minTimeToDeparture, EVENT_BUS_DEPARTURE); // temporary, will be changed to check if there are more passengers coming
+    } else {
         event_schedule(sim_time, EVENT_BUS_DEPARTURE);
-    // }
+    }
 
 }
 
