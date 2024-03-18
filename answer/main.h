@@ -33,7 +33,7 @@ const float distanceTerminal2ToCarRental = 4.5; // miles
 
 const float probabilityCarRentalToTerminal1 = 0.583;
 const float probabilityCarRentalToTerminal2 = 0.417;
-double probDistribOfPassangerDestinationFromCarRental[2] = {0.583, 1.0};
+double probDistribOfPassangerDestinationFromCarRental[3] = {0, 0.583, 1.0};
 
 int simulationRunTime = 8; // 8 hours
 
