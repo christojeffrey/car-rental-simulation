@@ -1,45 +1,10 @@
 #include "simlib.h"
-// DEFINITION FROM THE PROBLEM
-// define stream. follows what the book told
-#define STREAM_INTERARRIVAL_TERMINAL_1 1
-#define STREAM_INTERARRIVAL_TERMINAL_2 2
-#define STREAM_INTERARRIVAL_CAR_RENTAL 3
-#define STREAM_UNLOADING_TIME 4
-#define STREAM_LOADING_TIME 5
-#define STREAM_CAR_RENTAL_TO_TERMINAL_DESTINATION 6
+#include "main.h"
 
 
-double busSpeed = 30; // 30 miles per hour
-const float arrivalRateTerminal1 = 14; // 14 per hour
-const float arrivalRateTerminal2 = 10; // 10 per hour
-const float arrivalRateCarRental = 24; // 24 per hour
-const int busCapacity = 30;
-const int busWaitingTime = 5; // 5 minutes;
 
-// bus initially at car rental, next location is terminal 1
-// bus helper variable
-#define TERMINAL_1 1
-#define TERMINAL_2 2
-#define CAR_RENTAL 3
-#define ON_THE_WAY 4
-int busLocation = CAR_RENTAL;
-int busNextLocation = TERMINAL_1;
 
-const float distanceCarRentalToTerminal1 = 4.5; // miles
-const float distanceTerminal1ToTerminal2 = 1; // miles
-const float distanceTerminal2ToCarRental = 4.5; // miles
 
-const float probabilityCarRentalToTerminal1 = 0.583;
-const float probabilityCarRentalToTerminal2 = 0.417;
-double probDistribOfPassangerDestinationFromCarRental[2] = {0.583, 1.0};
-
-int simulationRunTime = 8; // 8 hours
-
-float unloadBottomRange = 16; // seconds
-float unloadTopRange = 24; // seconds
-
-float loadBottomRange = 15; // seconds
-float loadTopRange = 25; // seconds
 
 // DEFINITION FROM OURSELVES
 // define events
@@ -74,10 +39,7 @@ float loadTopRange = 25; // seconds
 
 
 
-// create boolean type
-#define FALSE 0
-#define TRUE 1
-#define boolean int
+
 
 // for accessing attribute of transfer
 #define PASSANGER_ARRIVAL_TIME 1
@@ -93,9 +55,9 @@ int currentNumberOfPassangerInBus();
 
 void busGoNow();
 
-void arrivalTerminal1();
-void arrivalTerminal2();
-void arrivalCarRental();
+void passengerArrivalTerminal1();
+void passengerArrivalTerminal2();
+void passengerArrivalCarRental();
 
 void busArriveAtTerminal1();
 void busArriveAtTerminal2();
@@ -123,16 +85,14 @@ int main(){
     timeCarRentalToTerminal1 = distanceCarRentalToTerminal1 / busSpeed;
     timeTerminal1ToTerminal2 = distanceTerminal1ToTerminal2 / busSpeed;
     timeTerminal2ToCarRental = distanceTerminal2ToCarRental / busSpeed;
-    
-    printf("Hello, World!\n"); // temporary, just to make sure the program is running
-    
+        
     init_simlib();
 
      /* Schedule the first arrivals */
 
-    event_schedule(expon(meanArrivalTerminal1, STREAM_INTERARRIVAL_TERMINAL_1),EVENT_ARRIVAL_TERMINAL_1);
-    event_schedule(expon(meanArrivalTerminal2, STREAM_INTERARRIVAL_TERMINAL_2),EVENT_ARRIVAL_TERMINAL_2);
-    event_schedule(expon(meanArrivalCarRental, STREAM_INTERARRIVAL_CAR_RENTAL),EVENT_ARRIVAL_CAR_RENTAL);
+    event_schedule(expon(meanArrivalTerminal1, STREAM_PASSENGER_INTERARRIVAL_TERMINAL_1),EVENT_ARRIVAL_TERMINAL_1);
+    event_schedule(expon(meanArrivalTerminal2, STREAM_PASSENGER_INTERARRIVAL_TERMINAL_2),EVENT_ARRIVAL_TERMINAL_2);
+    event_schedule(expon(meanArrivalCarRental, STREAM_PASSENGER_INTERARRIVAL_CAR_RENTAL),EVENT_ARRIVAL_CAR_RENTAL);
 
     // as said in the problem, bus leaves immediately from car rental to terminal 1
     busGoNow();
@@ -148,15 +108,15 @@ int main(){
         switch (next_event_type) {
             case EVENT_ARRIVAL_TERMINAL_1:
                 printf("[%.2f] Passanger arrived at terminal 1\n", sim_time);
-                arrivalTerminal1();
+                passengerArrivalTerminal1();
                 break;
             case EVENT_ARRIVAL_TERMINAL_2:
                 printf("[%.2f] Passanger arrived at terminal 2\n", sim_time);
-                arrivalTerminal2();
+                passengerArrivalTerminal2();
                 break;
             case EVENT_ARRIVAL_CAR_RENTAL:
                 printf("[%.2f] Passanger arrived at car rental\n", sim_time);
-                arrivalCarRental();
+                passengerArrivalCarRental();
                 break;
             case EVENT_BUS_TERMINAL_1:
                 printf("[%.2f] Bus arrived at terminal 1\n", sim_time);
@@ -194,21 +154,16 @@ int main(){
     return 0;
 }
 
-/*
-    return the current number of passanger in the bus, from all lines of passanger in the bus
-*/
-int currentNumberOfPassangerInBus () {
-    return list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] + list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_2] + list_size[LINE_PASSANGER_IN_BUS_TO_CAR_RENTAL];
-}
+
 
 /*
     1. get in line. terminal line is
     2. if the bus is not yet full and the bus is there, postpone the departure of the bus and schedule the loading of the passanger
 
 */
-void arrivalTerminal1(){
+void passengerArrivalTerminal1(){
     // schedule the next arrival
-    event_schedule(sim_time + expon(meanArrivalTerminal1, STREAM_INTERARRIVAL_TERMINAL_1), EVENT_ARRIVAL_TERMINAL_1);
+    event_schedule(sim_time + expon(meanArrivalTerminal1, STREAM_PASSENGER_INTERARRIVAL_TERMINAL_1), EVENT_ARRIVAL_TERMINAL_1);
 
     // get in line
     transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
@@ -226,9 +181,9 @@ void arrivalTerminal1(){
 /*
     TODO: handle passanger arrival at Terminal 2
 */
-void arrivalTerminal2(){
+void passengerArrivalTerminal2(){
     // schedule the next arrival
-    event_schedule(sim_time + expon(meanArrivalTerminal2, STREAM_INTERARRIVAL_TERMINAL_2), EVENT_ARRIVAL_TERMINAL_2);
+    event_schedule(sim_time + expon(meanArrivalTerminal2, STREAM_PASSENGER_INTERARRIVAL_TERMINAL_2), EVENT_ARRIVAL_TERMINAL_2);
 
     // get in line
     transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
@@ -238,9 +193,9 @@ void arrivalTerminal2(){
 /*
     TODO: handle passanger arrival at Car Rental
 */
-void arrivalCarRental(){
+void passengerArrivalCarRental(){
     // schedule the next arrival
-    event_schedule(sim_time + expon(meanArrivalCarRental, STREAM_INTERARRIVAL_CAR_RENTAL), EVENT_ARRIVAL_CAR_RENTAL);
+    event_schedule(sim_time + expon(meanArrivalCarRental, STREAM_PASSENGER_INTERARRIVAL_CAR_RENTAL), EVENT_ARRIVAL_CAR_RENTAL);
 
     // get in line
     transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
@@ -348,7 +303,9 @@ void passangerLoadingCarRental(){
     } 
 }
 
-
+/*
+    HELPER FUNCTION TO MAKE THE CODE MORE CONCISE
+*/ 
 /*
     will schedule time of arrival of the bus at the next location based on bus location, from current time.
 */
@@ -370,4 +327,12 @@ void busGoNow(){
             busLocation = ON_THE_WAY;
             break;
     }
+}
+
+
+/*
+    return the current number of passanger in the bus, from all lines of passanger in the bus
+*/
+int currentNumberOfPassangerInBus () {
+    return list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] + list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_2] + list_size[LINE_PASSANGER_IN_BUS_TO_CAR_RENTAL];
 }

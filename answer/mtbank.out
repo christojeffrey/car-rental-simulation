@@ -1,0 +1,72 @@
+Multiteller bank with separate queues & jockeying
+
+Number of tellers               4 to  7
+
+Mean interarrival time      1.000 minutes
+
+Mean service time           4.500 minutes
+
+Bank closes after           8.000 hours
+
+
+
+
+
+With 4 tellers, average number in queue =     51.319
+
+Delays in queue, in minutes:
+
+ sampst                         Number
+variable                          of
+ number       Average           values          Maximum          Minimum
+________________________________________________________________________
+
+    1         63.2229          501.000          156.363          0.00000 
+________________________________________________________________________
+
+
+
+
+With 5 tellers, average number in queue =      2.441
+
+Delays in queue, in minutes:
+
+ sampst                         Number
+variable                          of
+ number       Average           values          Maximum          Minimum
+________________________________________________________________________
+
+    1         2.48150          483.000          21.8874          0.00000 
+________________________________________________________________________
+
+
+
+
+With 6 tellers, average number in queue =      0.718
+
+Delays in queue, in minutes:
+
+ sampst                         Number
+variable                          of
+ number       Average           values          Maximum          Minimum
+________________________________________________________________________
+
+    1        0.763757          467.000          16.5103          0.00000 
+________________________________________________________________________
+
+
+
+
+With 7 tellers, average number in queue =      0.179
+
+Delays in queue, in minutes:
+
+ sampst                         Number
+variable                          of
+ number       Average           values          Maximum          Minimum
+________________________________________________________________________
+
+    1        0.176180          493.000          6.97124          0.00000 
+________________________________________________________________________
+
+
