@@ -32,18 +32,33 @@
 #define LINE_PASSENGER_IN_BUS_TO_TERMINAL_1 4 // for list_file. represents passenger in the bus going to terminal 1
 #define LINE_PASSENGER_IN_BUS_TO_TERMINAL_2 5 // for list_file. represents passenger in the bus going to terminal 2
 #define LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL 6 // for list_file. represents passenger in the bus going to car rental
-
+#define LINE_BUS_ALL 7 // only used for counting the number of passengers in the bus, for report
 
 #define SAMPST_LINE_DELAY_TERMINAL_1 1
 #define SAMPST_LINE_DELAY_TERMINAL_2 2
 #define SAMPST_LINE_DELAY_CAR_RENTAL 3
 
+#define SAMPST_BUS_STOPPED_AT_TERMINAL_1 4
+#define SAMPST_BUS_STOPPED_AT_TERMINAL_2 5
+#define SAMPST_BUS_STOPPED_AT_CAR_RENTAL 6
+
+#define SAMPST_BUS_MAKE_A_LOOP 7
+
+#define SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_1 8
+#define SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_2 9
+#define SAMPST_PASSENGER_IN_SYSTEM_TO_CAR_RENTAL 10
+
+// bus attribute for transfer
+#define BUS_ARRIVAL_TIME 3
+#define BUS_SAMPST_VARIABLE 4
+#define BUS_PREVIOUS_TIME_AT_CAR_RENTAL 5
 
 // for accessing attribute of transfer
 #define PASSENGER_ARRIVAL_TIME 1
 #define PASSENGER_DESTINATION 2
 #define PASSENGER_FUTURE_BUS_LINE 3
-#define PASSENGER_SAMPST_VARIABLE 4 // for easy calling. for report generating purpose
+#define PASSENGER_SAMPST_IN_LINE_VARIABLE 4 // for easy calling. for report generating purpose
+#define PASSENGER_SAMPST_IN_SYSTEM_VARIABLE 5 // for easy calling. for report generating purpose
 
 
 float meanArrivalTerminal1, meanArrivalTerminal2, meanArrivalCarRental;
@@ -104,6 +119,7 @@ int main(){
 
     // as said in the problem, bus leaves immediately from car rental to terminal 1
     busGoNow();
+    
 
     // schedule simulation end
     event_schedule(simulationRunTime, EVENT_END_SIMULATION);
@@ -168,12 +184,14 @@ void EHpassengerArrivalTerminal1(){
     // schedule the next arrival at terminal 1
     schedulePassengerArrival(TERMINAL_1);
 
-    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_1; 
+    transfer[PASSENGER_SAMPST_IN_LINE_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_1; 
+    transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE] = SAMPST_PASSENGER_IN_SYSTEM_TO_CAR_RENTAL;
 
     // get in terminal 1 queue
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
     transfer[PASSENGER_DESTINATION] = CAR_RENTAL;
     transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL;
+
     list_file(LAST, LINE_TERMINAL_1);
 
     // if bus is here, get in!
@@ -194,7 +212,9 @@ void EHpassengerArrivalTerminal2(){
     // schedule the next arrival
     schedulePassengerArrival(TERMINAL_2);
 
-    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_2;
+    transfer[PASSENGER_SAMPST_IN_LINE_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_2;
+    transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE] = SAMPST_PASSENGER_IN_SYSTEM_TO_CAR_RENTAL;
+
 
     // get in line
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
@@ -221,7 +241,7 @@ void EHpassengerArrivalCarRental(){
     // schedule the next arrival
     schedulePassengerArrival(CAR_RENTAL);
 
-    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_CAR_RENTAL;
+    transfer[PASSENGER_SAMPST_IN_LINE_VARIABLE] = SAMPST_LINE_DELAY_CAR_RENTAL;
 
     // get in line
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
@@ -231,10 +251,13 @@ void EHpassengerArrivalCarRental(){
         // go to terminal 1
         transfer[PASSENGER_DESTINATION] = TERMINAL_1;
         transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_TERMINAL_1;
+        transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE] = SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_1;
+
     } else{
         // go to terminal 2
         transfer[PASSENGER_DESTINATION] = TERMINAL_2;
         transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_TERMINAL_2;
+        transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE] = SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_2;
     }
 
     list_file(LAST, LINE_CAR_RENTAL);
@@ -254,24 +277,31 @@ void EHpassengerArrivalCarRental(){
 
 */
 void EHbusArrive(){
+    int busSampstVariable = -1;
     // update bus location
     switch (busNextLocation){
         case TERMINAL_1:
             busLocation = TERMINAL_1;
             busNextLocation = TERMINAL_2;
+            busSampstVariable = SAMPST_BUS_STOPPED_AT_TERMINAL_1;
             break;
         case TERMINAL_2:
             busLocation = TERMINAL_2;
             busNextLocation = CAR_RENTAL;
+            busSampstVariable = SAMPST_BUS_STOPPED_AT_TERMINAL_2;
             break;
         case CAR_RENTAL:
             busLocation = CAR_RENTAL;
             busNextLocation = TERMINAL_1;
+            busSampstVariable = SAMPST_BUS_STOPPED_AT_CAR_RENTAL;
             break;
         default:
             break;
     }
 
+    // write down bus arrival time
+    transfer[BUS_ARRIVAL_TIME] = sim_time;
+    transfer[BUS_SAMPST_VARIABLE] = busSampstVariable;
     // schedule departure
     event_schedule(sim_time + busWaitingTime, EVENT_BUS_DEPARTURE);
 
@@ -292,8 +322,14 @@ void EHpassengerFinishUnloading(){
     int busLine = -1;
     int toBeLoadedLine = -1;
     getCurrentBusLineAndLocationLine(&busLine, &toBeLoadedLine);
+    
     // update the bus' line. 
     list_remove(FIRST, busLine);
+    // for report purpose. note down time in system
+    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE]);
+    
+    list_remove(FIRST, LINE_BUS_ALL); // for report purpose
+    
 
     // trigger the next action either unload or go to load when there's no more unload
     triggerPassangerUnloadAndThenLoadIfTheresAny();
@@ -315,16 +351,22 @@ void EHPassengerFinishLoading(){
     // remove passenger from the line and put it in the bus
 
     list_remove(FIRST, toBeLoadedLine); // after removing, many things can be accessed from transfer variable
-    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_VARIABLE]); 
+    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE]); 
     list_file(LAST, transfer[PASSENGER_FUTURE_BUS_LINE]);
+    list_file(LAST, LINE_BUS_ALL); // for report purpose
 
 
     triggerPassangerUnloadAndThenLoadIfTheresAny();
 }
 
 void EHbusGoNow(){
-    // print bus capacity right now
-    printf("[%.2f] Bus is going to %d with %d passengers\n", sim_time, busNextLocation, currentNumberOfPassangerInBus());
+    sampst(sim_time - transfer[BUS_ARRIVAL_TIME], transfer[BUS_SAMPST_VARIABLE]); // for report purpose
+
+     // note time to make a loop from car rental to car rental
+    if(busLocation == CAR_RENTAL){
+        sampst(sim_time - transfer[BUS_PREVIOUS_TIME_AT_CAR_RENTAL], SAMPST_BUS_MAKE_A_LOOP);
+        transfer[BUS_PREVIOUS_TIME_AT_CAR_RENTAL] = sim_time;
+    }
     busGoNow();
 }
 
@@ -336,7 +378,7 @@ void EHbusGoNow(){
     will schedule time of arrival of the bus at the next location based on bus location, from current time.
 */
 void busGoNow(){
-
+   
     switch (busNextLocation){
         case TERMINAL_1:
             event_schedule(sim_time + timeCarRentalToTerminal1, EVENT_BUS_ARRIVE);
@@ -484,24 +526,33 @@ void report(void){
     /*
         avg max number on the bus
     */
-   int total_avg_bus = 0;
+    filest(LINE_BUS_ALL);
+    printf("average number in bus = %10.3f\n", transfer[1]);
+    printf("max number in bus = %10.3f\n", transfer[2]);
+    printf("min number in bus = %10.3f\n", transfer[3]);
 
-   int busLine[3] = {LINE_PASSENGER_IN_BUS_TO_TERMINAL_1, LINE_PASSENGER_IN_BUS_TO_TERMINAL_2, LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL};
-    for(int i = 0; i < 3; i++){
-        filest(busLine[i]);
-        total_avg_bus += transfer[1];
-    }
-    printf("average number in bus = %10.3f\n", total_avg_bus);
-
-    fprintf(outfile, "\n\nWith %d capacity bus, average number in bus = %10.3f", busCapacity, total_avg_bus);
+    fprintf(outfile, "\n\nWith %d capacity bus, average number in bus = %10.3f", busCapacity, transfer[1]);
+    out_filest(outfile, LINE_BUS_ALL, LINE_BUS_ALL);
    
     /*
         avg max min time the bus is stopped at each location
     */
+    fprintf(outfile, "\n\nBus stopped at terminal 1, in minutes:\n");
+    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_TERMINAL_1, SAMPST_BUS_STOPPED_AT_TERMINAL_1);
+    fprintf(outfile, "\n\nBus stopped at terminal 2, in minutes:\n");
+    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_TERMINAL_2, SAMPST_BUS_STOPPED_AT_TERMINAL_2);
+    fprintf(outfile, "\n\nBus stopped at car rental, in minutes:\n");
+    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_CAR_RENTAL, SAMPST_BUS_STOPPED_AT_CAR_RENTAL);
+    fprintf(outfile, "\n\nlegend: \n   4 - terminal 1,\n   5 - terminal 2,\n   6 - car rental\n");
     /*
         avg max min time for the bust to make a loop (car rental to car rental)
     */
+    fprintf(outfile, "\n\nTime for the bus to make a loop, in minutes:\n");
+    out_sampst(outfile, SAMPST_BUS_MAKE_A_LOOP, SAMPST_BUS_MAKE_A_LOOP);
     /*
         avg max min time a person is in the system
     */
+    fprintf(outfile, "\n\nTime a person is in the system, in minutes:\n");
+    out_sampst(outfile, SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_1, SAMPST_PASSENGER_IN_SYSTEM_TO_CAR_RENTAL);
+    fprintf(outfile, "\n\nlegend: \n   8 - terminal 1,\n   9 - terminal 2,\n   10 - car rental\n");
 }
