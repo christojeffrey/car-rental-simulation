@@ -46,8 +46,7 @@
 float meanArrivalTerminal1, meanArrivalTerminal2, meanArrivalCarRental;
 double timeCarRentalToTerminal1, timeTerminal1ToTerminal2, timeTerminal2ToCarRental; 
 
-double minTimeToDeparture;
-
+boolean currentlyLoadingOrUnloading = FALSE;  // to prevent double loading or unloading triggered by sudden arrival of passanger;
 
 // Event Handler
 void EHpassengerArrivalTerminal1();
@@ -59,8 +58,6 @@ void EHbusGoNow();
 
 void EHpassengerFinishUnloading();
 void EHPassengerFinishLoading();
-
-
 
 // helper
 void schedulePassengerArrival(int destination);
@@ -151,9 +148,10 @@ int main(){
 
 
 /*
-    1. get in line. terminal line is
-    2. if the bus is not yet full and the bus is there, postpone the departure of the bus and schedule the loading of the passenger
-
+    handle passenger arrival at Terminal 1
+    1. schedule next arrival
+    2. get that passenger in line
+    3. check the bus. if the bus is there, get in!
 */
 void EHpassengerArrivalTerminal1(){
     // schedule the next arrival at terminal 1
@@ -165,35 +163,43 @@ void EHpassengerArrivalTerminal1(){
     transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL;
     list_file(LAST, LINE_TERMINAL_1);
 
-
-    // TODO: handle if bus is here
-
-    /* TODO:
-        1. check if the unloading is done
-        2. postpone the departure of the bus (cancel and rescchedule the event of bus departure)
-    */
-    // if (busLocation == TERMINAL_1 && currentNumberOfPassangerInBus() < busCapacity){
-    //     event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSENGER_LOADING_TERMINAL_1);
-    // }
+    // if bus is here, get in!
+    if(busLocation == TERMINAL_1){
+        if(!currentlyLoadingOrUnloading){// need to check. if not checked, might result in paralel loading.
+            triggerPassangerUnloadAndThenLoadIfTheresAny(); 
+        }
+    }
 }
 
 /*
-    TODO: handle passenger arrival at Terminal 2
+    handle passenger arrival at Terminal 2
+    1. schedule next arrival
+    2. get that passenger in line
+    3. check the bus. if the bus is there, get in!
 */
 void EHpassengerArrivalTerminal2(){
     // schedule the next arrival
     schedulePassengerArrival(TERMINAL_2);
-
 
     // get in line
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
     transfer[PASSENGER_DESTINATION] = CAR_RENTAL;
     transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL;
     list_file(LAST, LINE_TERMINAL_2);
+
+    // if bus is here, get in!
+    if(busLocation == TERMINAL_2){
+        if(!currentlyLoadingOrUnloading){// need to check. if not checked, might result in paralel loading.
+            triggerPassangerUnloadAndThenLoadIfTheresAny(); 
+        }
+    }
 }
 
 /*
-    TODO: handle passenger arrival at Car Rental
+    handle passenger arrival at Car Rental
+    1. schedule next arrival
+    2. get that passenger in line
+    3. check the bus. if the bus is there, get in!
 */
 void EHpassengerArrivalCarRental(){
     // schedule the next arrival
@@ -213,6 +219,13 @@ void EHpassengerArrivalCarRental(){
     }
 
     list_file(LAST, LINE_CAR_RENTAL);
+
+    // if bus is here, get in!
+    if(busLocation == CAR_RENTAL){
+        if(!currentlyLoadingOrUnloading){// need to check. if not checked, might result in paralel loading.
+            triggerPassangerUnloadAndThenLoadIfTheresAny(); 
+        }
+    }
 }
 
 /*
@@ -249,50 +262,12 @@ void EHbusArrive(){
 }
 
 /*
-    this function is responsible for the job of loading and unloadng. 
-
-    will start unloading if there's any passenger to unload. 
-    if there's none, will start load passenger.
-    if none, will do nothing. 
+    handle unloading passenger from the bus
+    
+    called when a passenger if finished unloading.
+     1. update the bus line
+     2. then trigger the next unload
 */
-void triggerPassangerUnloadAndThenLoadIfTheresAny(){
-    int busLine = -1;
-    int toBeLoadedLine = -1;
-    getCurrentBusLineAndLocationLine(&busLine, &toBeLoadedLine);
-
-    // if there are passengers to be unloaded, will trigger 
-    if(list_size[busLine] > 0){
-        double finishUnloadingTime = sim_time + uniform(unloadBottomRange, unloadTopRange, STREAM_UNLOADING_TIME);
-        event_schedule(finishUnloadingTime, EVENT_PASSENGER_FINISH_UNLOADING);
-        
-        // handle is bus about to go in the middle of unloading the passenger by postpone bus departure if the bus is about to go
-        forceBusToWait(finishUnloadingTime);
-    } else{
-        // if there are no passengers to be unloaded, check if there are passengers to be loaded
-        if (list_size[toBeLoadedLine] > 0 && currentNumberOfPassangerInBus() < busCapacity){
-            double finishLoadingTime = sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME);
-            event_schedule(finishLoadingTime, EVENT_PASSENGER_FINISH_LOADING);
-            // handle is bus about to go in the middle of loading the passenger by postpone bus departure if the bus is about to go
-            forceBusToWait(finishLoadingTime);
-        }
-    }
-}
-
-/*
-    IMPORTANT: call this function after the desired action, not before.
-    event scheduling uses list_file, who will resolve ties by FIFO. 
-    so if an event is done by 6 and the bus departure is also at 6, that event will be triggered first, and then bus departure will be called next. allowing you to call the next force bus to wait. 
-*/
-void forceBusToWait(double nextEventFinishTime){
-    event_cancel(EVENT_BUS_DEPARTURE); // tf[1] is the previous scheduled time of bus departure
-    // schedule the maximum between previous departure time and the finish unloading time
-    event_schedule(fmax(nextEventFinishTime, transfer[1]), EVENT_BUS_DEPARTURE); // because of FIFO, event above will be called first. before bus departure if there are more passengers to be unloaded
-}
-/*
-    TODO: handle unloading passenger from the bus in terminal 1
-    // if this function is called, the passenger is fully unloaded. do chore - update the bus line,
-*/
-
 void EHpassengerFinishUnloading(){
     int busLine = -1;
     int toBeLoadedLine = -1;
@@ -300,13 +275,17 @@ void EHpassengerFinishUnloading(){
     // update the bus' line. 
     list_remove(FIRST, busLine);
 
-    // trigger the next action either unload or load
+    // trigger the next action either unload or go to load when there's no more unload
     triggerPassangerUnloadAndThenLoadIfTheresAny();
 
 }
 
 /*
-    TODO: handle loading passenger to the bus in terminal 1
+    handle loading passenger to the bus
+    called when a passenger is finished loading
+    1. remove passenger from the line and put it in the bus
+    2. then trigger the next loading
+
 */
 void EHPassengerFinishLoading(){
     int busLine = -1;
@@ -322,12 +301,13 @@ void EHPassengerFinishLoading(){
     triggerPassangerUnloadAndThenLoadIfTheresAny();
 }
 
-/*
-    HELPER FUNCTION TO MAKE THE CODE MORE CONCISE
-*/ 
 void EHbusGoNow(){
     busGoNow();
 }
+
+/*
+    HELPER FUNCTION TO MAKE THE CODE MORE CONCISE
+*/ 
 
 /*
     will schedule time of arrival of the bus at the next location based on bus location, from current time.
@@ -391,4 +371,51 @@ void getCurrentBusLineAndLocationLine(int *busLine, int *toBeLoadedLine){
             *toBeLoadedLine = LINE_CAR_RENTAL;
             break;
     }
+}
+
+
+
+/*
+    this function is responsible for the job of loading and unloadng. 
+
+    will start unloading if there's any passenger to unload. 
+    if there's none, will start load passenger.
+    if none, will do nothing. 
+*/
+void triggerPassangerUnloadAndThenLoadIfTheresAny(){
+    int busLine = -1;
+    int toBeLoadedLine = -1;
+    getCurrentBusLineAndLocationLine(&busLine, &toBeLoadedLine);
+
+    // if there are passengers to be unloaded, will trigger 
+    if(list_size[busLine] > 0){
+        double finishUnloadingTime = sim_time + uniform(unloadBottomRange, unloadTopRange, STREAM_UNLOADING_TIME);
+        event_schedule(finishUnloadingTime, EVENT_PASSENGER_FINISH_UNLOADING);
+        
+        // handle is bus about to go in the middle of unloading the passenger by postpone bus departure if the bus is about to go
+        forceBusToWait(finishUnloadingTime);
+        currentlyLoadingOrUnloading = TRUE;
+    } else{
+        // if there are no passengers to be unloaded, check if there are passengers to be loaded
+        if (list_size[toBeLoadedLine] > 0 && currentNumberOfPassangerInBus() < busCapacity){
+            double finishLoadingTime = sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME);
+            event_schedule(finishLoadingTime, EVENT_PASSENGER_FINISH_LOADING);
+            // handle is bus about to go in the middle of loading the passenger by postpone bus departure if the bus is about to go
+            forceBusToWait(finishLoadingTime);
+            currentlyLoadingOrUnloading = TRUE;
+        } else{
+            currentlyLoadingOrUnloading = FALSE;
+        }
+    }
+}
+
+/*
+    IMPORTANT: call this function after the desired action, not before.
+    event scheduling uses list_file, who will resolve ties by FIFO. 
+    so if an event is done by 6 and the bus departure is also at 6, that event will be triggered first, and then bus departure will be called next. allowing you to call the next force bus to wait. 
+*/
+void forceBusToWait(double nextEventFinishTime){
+    event_cancel(EVENT_BUS_DEPARTURE); // tf[1] is the previous scheduled time of bus departure
+    // schedule the maximum between previous departure time and the finish unloading time
+    event_schedule(fmax(nextEventFinishTime, transfer[1]), EVENT_BUS_DEPARTURE); // because of FIFO, event above will be called first. before bus departure if there are more passengers to be unloaded
 }
