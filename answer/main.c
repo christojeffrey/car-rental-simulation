@@ -33,7 +33,7 @@ const float probabilityCarRentalToTerminal1 = 0.583;
 const float probabilityCarRentalToTerminal2 = 0.417;
 double probDistribOfPassangerDestinationFromCarRental[2] = {0.583, 1.0};
 
-const int simulationRunTime = 1 * 60; // 8 hours
+int simulationRunTime = 8; // 8 hours
 
 float unloadBottomRange = 16; // seconds
 float unloadTopRange = 24; // seconds
@@ -55,10 +55,14 @@ float loadTopRange = 25; // seconds
 #define EVENT_DEPARTURE_TERMINAL_1 8 // passenger depart from terminal 1 using bus to car rental
 #define EVENT_DEPARTURE_TERMINAL_2 9 // passenger depart from terminal 2 using bus to car rental
 #define EVENT_DEPARTURE_CAR_RENTAL 10 // passenger depart from car rental using bus to terminal 1 or terminal 2
-#define EVENT_PASSANGER_LOADING_TERMINAL_1 11 // bus passanger X loaded
-#define EVENT_PASSANGER_UNLOADING_TERMINAL_1 12 // bus passanger X UNLOADING
+#define EVENT_PASSANGER_LOADING_TERMINAL_1 11 // loading passanger X from terminal 1to the bus
+#define EVENT_PASSANGER_UNLOADING_TERMINAL_1 12 // unloading passanger X from the bus to terminal 1
+#define EVENT_PASSANGER_LOADING_TERMINAL_2 13 // loading passanger X from terminal 2 to the bus
+#define EVENT_PASSANGER_UNLOADING_TERMINAL_2 14 // unloading passanger X from the bus to terminal 2
+#define EVENT_PASSANGER_LOADING_CAR_RENTAL 15 // loading passanger X from car rental to the bus
+#define EVENT_PASSANGER_UNLOADING_CAR_RENTAL 16 // unloading passanger X from the bus to car rental
 
-#define EVENT_END_SIMULATION 13
+#define EVENT_END_SIMULATION 17
 
 #define LINE_TERMINAL_1 1 // for list_file. represents the line at terminal 1
 #define LINE_TERMINAL_2 2 // for list_file. represents the line at terminal 2
@@ -77,7 +81,7 @@ float loadTopRange = 25; // seconds
 
 // for accessing attribute of transfer
 #define PASSANGER_ARRIVAL_TIME 1
-#define PASSANGER_DESTINATION 3
+#define PASSANGER_DESTINATION 2
 
 
 float meanArrivalTerminal1, meanArrivalTerminal2, meanArrivalCarRental;
@@ -99,10 +103,14 @@ void busArriveAtCarRental();
 
 void passangerUnloadingTerminal1();
 void passangerLoadingTerminal1();
+void passangerLoadingCarRental();
 
 /* Main function. */
 int main(){
     // for consistency, everything is going to be converted to minutes and miles
+
+    simulationRunTime = simulationRunTime * 60; // hours to minutes
+
     busSpeed = busSpeed / 60; // miles per minute
     unloadBottomRange = unloadBottomRange / 60; // seconds to minutes
     unloadTopRange = unloadTopRange / 60; // seconds to minutes
@@ -170,6 +178,10 @@ int main(){
                 printf("[%.2f] Passanger loaded to the bus in terminal 1\n", sim_time);
                 passangerLoadingTerminal1();
                 break;
+            case EVENT_PASSANGER_LOADING_CAR_RENTAL:
+                printf("[%.2f] Passanger loaded to the bus in car rental\n", sim_time);
+                passangerLoadingCarRental();
+                break;
             case EVENT_PASSANGER_UNLOADING_TERMINAL_1:
                 printf("[%.2f] Passanger unloaded from the bus in terminal 1\n", sim_time);
                 passangerUnloadingTerminal1();
@@ -182,17 +194,17 @@ int main(){
     return 0;
 }
 
-
+/*
+    return the current number of passanger in the bus, from all lines of passanger in the bus
+*/
 int currentNumberOfPassangerInBus () {
     return list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] + list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_2] + list_size[LINE_PASSANGER_IN_BUS_TO_CAR_RENTAL];
 }
 
 /*
-    TODO: handle passanger arrival at Terminal 1
     1. get in line. terminal line is
-    2. if the bus is not yet full and the bus is there, postpone the departure of the bus and get in the bus.
+    2. if the bus is not yet full and the bus is there, postpone the departure of the bus and schedule the loading of the passanger
 
-    CHANGE: delete the above 2nd condition, handle it in the bus arrival at terminal 1
 */
 void arrivalTerminal1(){
     // schedule the next arrival
@@ -202,9 +214,13 @@ void arrivalTerminal1(){
     transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
     list_file(LAST, LINE_TERMINAL_1);
 
-    if (busLocation == TERMINAL_1 && currentNumberOfPassangerInBus() < busCapacity){
-        event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
-    }
+    /* TODO:
+        1. check if the unloading is done
+        2. postpone the departure of the bus (cancel and rescchedule the event of bus departure)
+    */
+    // if (busLocation == TERMINAL_1 && currentNumberOfPassangerInBus() < busCapacity){
+    //     event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
+    // }
 }
 
 /*
@@ -235,12 +251,10 @@ void arrivalCarRental(){
 }
 
 /*
-    TODO: handle bus arrival at terminal 1. 
-    1. unload the passengers. bye-bye to passanger whoare going to terminal 1
+    1. unload the passengers who want to go to terminal 1
     2. load the passengers
-    3. if full or no more passengers, schedule departure
+    3. check if the bus is ready to depart (5 minutes waiting time)
 
-    HAVENT handle the bus will be here for at least 5 minutes
 */
 void busArriveAtTerminal1(){
     busLocation = TERMINAL_1;
@@ -250,13 +264,13 @@ void busArriveAtTerminal1(){
     if (list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] > 0){
         event_schedule(sim_time + uniform(unloadBottomRange, unloadTopRange, STREAM_UNLOADING_TIME), EVENT_PASSANGER_UNLOADING_TERMINAL_1);
     }
-
-    // load the passengers
-    if (list_size[LINE_TERMINAL_1] > 0 && currentNumberOfPassangerInBus() < busCapacity){
+    // if no passengers to unload, check if there are passengers to load
+    else if (list_size[LINE_TERMINAL_1] > 0 && currentNumberOfPassangerInBus() < busCapacity){
         event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
     }
 
-    // wait for at least 5 minutes, allow more passengers to come
+    // TODO:  need to handle the bus will be here for at least 5 minutes
+    // need to maintain the minTimeToDeparture (as it is used as condition for departure in unloading and loading event)
     if (currentNumberOfPassangerInBus() < busCapacity && minTimeToDeparture > sim_time){
         // during this time, check if there are more passengers coming
         event_schedule(minTimeToDeparture, EVENT_BUS_DEPARTURE); // temporary, will be changed to check if there are more passengers coming
@@ -283,10 +297,19 @@ void busArriveAtCarRental(){
 */
 void passangerUnloadingTerminal1(){
     list_remove(FIRST, LINE_PASSANGER_IN_BUS_TO_TERMINAL_1);
-    list_file(LAST, LINE_TERMINAL_1);
 
+    // if there are more passengers going to terminal 1, schedule to unload them
     if (list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] > 0){
         event_schedule(sim_time + uniform(unloadBottomRange, unloadTopRange, STREAM_UNLOADING_TIME), EVENT_PASSANGER_UNLOADING_TERMINAL_1);
+    } 
+    // if all is unloaded and there are passengers in terminal 1, schedule to load them
+    // check if the bus is not yet full
+    else if (list_size[LINE_TERMINAL_1] > 0 && currentNumberOfPassangerInBus() < busCapacity){
+        event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
+    } 
+    // if all is unloaded and there are no passengers in terminal 1, check if the bus is ready to depart
+    else if (sim_time >= minTimeToDeparture){
+        event_schedule(sim_time, EVENT_BUS_DEPARTURE);
     }
 }
 
@@ -300,6 +323,7 @@ void passangerLoadingTerminal1(){
     // if the bus is not yet full and there are more passengers, schedule to load them
     if (list_size[LINE_TERMINAL_1] > 0 && currentNumberOfPassangerInBus() < busCapacity){
         event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
+    // if all passengers are loaded, check if the bus is ready to depart (5 minutes waiting time)
     } else if (sim_time >= minTimeToDeparture){
         event_schedule(sim_time, EVENT_BUS_DEPARTURE);
     }
@@ -314,8 +338,11 @@ void passangerLoadingCarRental(){
         list_file(LAST, LINE_PASSANGER_IN_BUS_TO_TERMINAL_2);
     }
 
+    // if the bus is not yet full and there are more passengers, schedule to load them
     if (list_size[LINE_CAR_RENTAL] > 0 && currentNumberOfPassangerInBus() < busCapacity){
-        event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
+        event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_CAR_RENTAL);
+    // all passengers are loaded
+    // TODO: need to check if the bus is ready to depart (5 minutes waiting time)
     } else {
         event_schedule(sim_time, EVENT_BUS_DEPARTURE);
     } 
