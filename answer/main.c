@@ -34,19 +34,24 @@
 #define LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL 6 // for list_file. represents passenger in the bus going to car rental
 
 
-
+#define SAMPST_LINE_DELAY_TERMINAL_1 1
+#define SAMPST_LINE_DELAY_TERMINAL_2 2
+#define SAMPST_LINE_DELAY_CAR_RENTAL 3
 
 
 // for accessing attribute of transfer
 #define PASSENGER_ARRIVAL_TIME 1
 #define PASSENGER_DESTINATION 2
 #define PASSENGER_FUTURE_BUS_LINE 3
+#define PASSENGER_SAMPST_VARIABLE 4 // for easy calling. for report generating purpose
 
 
 float meanArrivalTerminal1, meanArrivalTerminal2, meanArrivalCarRental;
 double timeCarRentalToTerminal1, timeTerminal1ToTerminal2, timeTerminal2ToCarRental; 
 
 boolean currentlyLoadingOrUnloading = FALSE;  // to prevent double loading or unloading triggered by sudden arrival of passanger;
+
+FILE *outfile;
 
 // Event Handler
 void EHpassengerArrivalTerminal1();
@@ -67,8 +72,11 @@ void forceBusToWait(double nextEventFinishTime);
 void getCurrentBusLineAndLocationLine(int *busLine, int *toBeLoadedLine);
 void busGoNow();
 
+void report();
+
 /* Main function. */
 int main(){
+    outfile = fopen("main.out", "w");
     // for consistency, everything is going to be converted to minutes and miles
 
     simulationRunTime = simulationRunTime * 60; // hours to minutes
@@ -107,33 +115,32 @@ int main(){
 
         switch (next_event_type) {
             case EVENT_ARRIVAL_TERMINAL_1:
-                printf("[%.2f] Passanger arrived at terminal 1\n", sim_time);
+                // printf("[%.2f] Passanger arrived at terminal 1\n", sim_time);
                 EHpassengerArrivalTerminal1();
                 break;
             case EVENT_ARRIVAL_TERMINAL_2:
-                printf("[%.2f] Passanger arrived at terminal 2\n", sim_time);
+                // printf("[%.2f] Passanger arrived at terminal 2\n", sim_time);
                 EHpassengerArrivalTerminal2();
                 break;
             case EVENT_ARRIVAL_CAR_RENTAL:
-                printf("[%.2f] Passanger arrived at car rental\n", sim_time);
+                // printf("[%.2f] Passanger arrived at car rental\n", sim_time);
                 EHpassengerArrivalCarRental();
                 break;
             
             case EVENT_BUS_ARRIVE:
-                printf("[%.2f] Bus arrived\n", sim_time);
+                // printf("[%.2f] Bus arrived\n", sim_time);
                 EHbusArrive();
                 break;
             case EVENT_BUS_DEPARTURE:
-                printf("[%.2f] Bus is on the way\n", sim_time);
                 EHbusGoNow();
                 break;
 
             case EVENT_PASSENGER_FINISH_UNLOADING:
-                printf("[%.2f] Passanger unloaded\n", sim_time);
+                // printf("[%.2f] Passanger unloaded\n", sim_time);
                 EHpassengerFinishUnloading();
                 break;
             case EVENT_PASSENGER_FINISH_LOADING:
-                printf("[%.2f] Passanger loaded to the bus\n", sim_time);
+                // printf("[%.2f] Passanger loaded to the bus\n", sim_time);
                 EHPassengerFinishLoading();
                 break;
         
@@ -142,6 +149,10 @@ int main(){
                 break;
         }
     }
+
+    report();
+
+    fclose(outfile);
     return 0;
 }
 
@@ -156,6 +167,8 @@ int main(){
 void EHpassengerArrivalTerminal1(){
     // schedule the next arrival at terminal 1
     schedulePassengerArrival(TERMINAL_1);
+
+    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_1; 
 
     // get in terminal 1 queue
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
@@ -181,10 +194,13 @@ void EHpassengerArrivalTerminal2(){
     // schedule the next arrival
     schedulePassengerArrival(TERMINAL_2);
 
+    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_TERMINAL_2;
+
     // get in line
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
     transfer[PASSENGER_DESTINATION] = CAR_RENTAL;
     transfer[PASSENGER_FUTURE_BUS_LINE] = LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL;
+
     list_file(LAST, LINE_TERMINAL_2);
 
     // if bus is here, get in!
@@ -205,8 +221,11 @@ void EHpassengerArrivalCarRental(){
     // schedule the next arrival
     schedulePassengerArrival(CAR_RENTAL);
 
+    transfer[PASSENGER_SAMPST_VARIABLE] = SAMPST_LINE_DELAY_CAR_RENTAL;
+
     // get in line
     transfer[PASSENGER_ARRIVAL_TIME] = sim_time;
+
     int destination = random_integer(probDistribOfPassangerDestinationFromCarRental, STREAM_CAR_RENTAL_TO_TERMINAL_DESTINATION); // 1 or 2
     if(destination == 1){
         // go to terminal 1
@@ -236,20 +255,21 @@ void EHpassengerArrivalCarRental(){
 */
 void EHbusArrive(){
     // update bus location
-    switch (busNextLocation)
-    {
-    case TERMINAL_1:
-        busLocation = TERMINAL_1;
-        busNextLocation = TERMINAL_2;
-        break;
-    case TERMINAL_2:
-        busLocation = TERMINAL_2;
-        busNextLocation = CAR_RENTAL;
-    case CAR_RENTAL:
-        busLocation = CAR_RENTAL;
-        busNextLocation = TERMINAL_1;
-    default:
-        break;
+    switch (busNextLocation){
+        case TERMINAL_1:
+            busLocation = TERMINAL_1;
+            busNextLocation = TERMINAL_2;
+            break;
+        case TERMINAL_2:
+            busLocation = TERMINAL_2;
+            busNextLocation = CAR_RENTAL;
+            break;
+        case CAR_RENTAL:
+            busLocation = CAR_RENTAL;
+            busNextLocation = TERMINAL_1;
+            break;
+        default:
+            break;
     }
 
     // schedule departure
@@ -294,14 +314,17 @@ void EHPassengerFinishLoading(){
 
     // remove passenger from the line and put it in the bus
 
-    list_remove(FIRST, toBeLoadedLine); // after removing the destination bus line is stored in transfer[3]
-    list_file(LAST, transfer[3]);
+    list_remove(FIRST, toBeLoadedLine); // after removing, many things can be accessed from transfer variable
+    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_VARIABLE]); 
+    list_file(LAST, transfer[PASSENGER_FUTURE_BUS_LINE]);
 
 
     triggerPassangerUnloadAndThenLoadIfTheresAny();
 }
 
 void EHbusGoNow(){
+    // print bus capacity right now
+    printf("[%.2f] Bus is going to %d with %d passengers\n", sim_time, busNextLocation, currentNumberOfPassangerInBus());
     busGoNow();
 }
 
@@ -320,10 +343,12 @@ void busGoNow(){
             busLocation = ON_THE_WAY;
             break;
         case TERMINAL_2:
+
             event_schedule(sim_time + timeTerminal1ToTerminal2, EVENT_BUS_ARRIVE);
             busLocation = ON_THE_WAY;
             break;
         case CAR_RENTAL:
+
             event_schedule(sim_time + timeTerminal2ToCarRental, EVENT_BUS_ARRIVE);
             busLocation = ON_THE_WAY;
             break;
@@ -418,4 +443,65 @@ void forceBusToWait(double nextEventFinishTime){
     event_cancel(EVENT_BUS_DEPARTURE); // tf[1] is the previous scheduled time of bus departure
     // schedule the maximum between previous departure time and the finish unloading time
     event_schedule(fmax(nextEventFinishTime, transfer[1]), EVENT_BUS_DEPARTURE); // because of FIFO, event above will be called first. before bus departure if there are more passengers to be unloaded
+}
+
+
+
+
+/* Report generator function. */
+void report(void){
+    /*
+        avg max number in each queue
+    */
+    // line terminal 1
+    printf("\n\nREPORT\n\n");
+    printf("at terminal 1\n");
+    filest(LINE_TERMINAL_1);
+    printf("average number in queue = %10.3f\n",transfer[1]);
+    printf("max number in queue = %10.3f\n",transfer[2]);
+    printf("min number in queue = %10.3f\n",transfer[3]);
+    // line terminal 2
+    printf("at terminal 2\n");
+    filest(LINE_TERMINAL_2);
+    printf("average number in queue = %10.3f\n",transfer[1]);
+    printf("max number in queue = %10.3f\n",transfer[2]);
+    printf("min number in queue = %10.3f\n",transfer[3]);
+    // line car rental
+    printf("at car rental\n");
+    filest(LINE_CAR_RENTAL);
+    printf("average number in queue = %10.3f\n",transfer[1]);
+    printf("max number in queue = %10.3f\n",transfer[2]);
+    printf("min number in queue = %10.3f\n",transfer[3]);
+
+    out_filest(outfile, LINE_TERMINAL_1, LINE_CAR_RENTAL);
+        
+    /*
+        avg max delay in each queue
+    */
+    fprintf(outfile, "\n\nDelays in queue, in minutes:\n");
+    out_sampst(outfile, SAMPST_LINE_DELAY_TERMINAL_1,SAMPST_LINE_DELAY_CAR_RENTAL);
+    fprintf(outfile, "\n\nlegend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
+    /*
+        avg max number on the bus
+    */
+   int total_avg_bus = 0;
+
+   int busLine[3] = {LINE_PASSENGER_IN_BUS_TO_TERMINAL_1, LINE_PASSENGER_IN_BUS_TO_TERMINAL_2, LINE_PASSENGER_IN_BUS_TO_CAR_RENTAL};
+    for(int i = 0; i < 3; i++){
+        filest(busLine[i]);
+        total_avg_bus += transfer[1];
+    }
+    printf("average number in bus = %10.3f\n", total_avg_bus);
+
+    fprintf(outfile, "\n\nWith %d capacity bus, average number in bus = %10.3f", busCapacity, total_avg_bus);
+   
+    /*
+        avg max min time the bus is stopped at each location
+    */
+    /*
+        avg max min time for the bust to make a loop (car rental to car rental)
+    */
+    /*
+        avg max min time a person is in the system
+    */
 }
