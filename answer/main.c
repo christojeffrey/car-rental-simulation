@@ -83,6 +83,8 @@ float loadTopRange = 25; // seconds
 float meanArrivalTerminal1, meanArrivalTerminal2, meanArrivalCarRental;
 double timeCarRentalToTerminal1, timeTerminal1ToTerminal2, timeTerminal2ToCarRental; 
 
+double minTimeToDeparture;
+
 int currentNumberOfPassangerInBus();
 
 void busGoNow();
@@ -199,6 +201,10 @@ void arrivalTerminal1(){
     // get in line
     transfer[PASSANGER_ARRIVAL_TIME] = sim_time;
     list_file(LAST, LINE_TERMINAL_1);
+
+    if (busLocation == TERMINAL_1 && currentNumberOfPassangerInBus() < busCapacity){
+        event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
+    }
 }
 
 /*
@@ -237,8 +243,8 @@ void arrivalCarRental(){
     HAVENT handle the bus will be here for at least 5 minutes
 */
 void busArriveAtTerminal1(){
-
-    double minTimeToDeparture = sim_time + busWaitingTime;
+    busLocation = TERMINAL_1;
+    minTimeToDeparture = sim_time + busWaitingTime;
 
     // unload the passengers
     if (list_size[LINE_PASSANGER_IN_BUS_TO_TERMINAL_1] > 0){
@@ -291,9 +297,10 @@ void passangerLoadingTerminal1(){
     list_remove(FIRST, LINE_TERMINAL_1);
     list_file(LAST, LINE_PASSANGER_IN_BUS_TO_TERMINAL_1);
 
+    // if the bus is not yet full and there are more passengers, schedule to load them
     if (list_size[LINE_TERMINAL_1] > 0 && currentNumberOfPassangerInBus() < busCapacity){
         event_schedule(sim_time + uniform(loadBottomRange, loadTopRange, STREAM_LOADING_TIME), EVENT_PASSANGER_LOADING_TERMINAL_1);
-    } else {
+    } else if (sim_time >= minTimeToDeparture){
         event_schedule(sim_time, EVENT_BUS_DEPARTURE);
     }
 }
