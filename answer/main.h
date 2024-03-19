@@ -35,7 +35,7 @@ const float probabilityCarRentalToTerminal1 = 0.583;
 const float probabilityCarRentalToTerminal2 = 0.417;
 double probDistribOfPassangerDestinationFromCarRental[3] = {0, 0.583, 1.0};
 
-int simulationRunTime = 8; // 8 hours
+int simulationRunTime = 80; // 80 hours
 
 float unloadBottomRange = 16; // seconds
 float unloadTopRange = 24; // seconds

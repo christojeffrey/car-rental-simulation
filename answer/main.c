@@ -351,7 +351,7 @@ void EHPassengerFinishLoading(){
     // remove passenger from the line and put it in the bus
 
     list_remove(FIRST, toBeLoadedLine); // after removing, many things can be accessed from transfer variable
-    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_IN_SYSTEM_VARIABLE]); 
+    sampst(sim_time - transfer[PASSENGER_ARRIVAL_TIME], transfer[PASSENGER_SAMPST_IN_LINE_VARIABLE]); // note down time in line
     list_file(LAST, transfer[PASSENGER_FUTURE_BUS_LINE]);
     list_file(LAST, LINE_BUS_ALL); // for report purpose
 
@@ -496,27 +496,13 @@ void report(void){
         avg max number in each queue
     */
     // line terminal 1
-    printf("\n\nREPORT\n\n");
-    printf("at terminal 1\n");
-    filest(LINE_TERMINAL_1);
-    printf("average number in queue = %10.3f\n",transfer[1]);
-    printf("max number in queue = %10.3f\n",transfer[2]);
-    printf("min number in queue = %10.3f\n",transfer[3]);
-    // line terminal 2
-    printf("at terminal 2\n");
-    filest(LINE_TERMINAL_2);
-    printf("average number in queue = %10.3f\n",transfer[1]);
-    printf("max number in queue = %10.3f\n",transfer[2]);
-    printf("min number in queue = %10.3f\n",transfer[3]);
-    // line car rental
-    printf("at car rental\n");
-    filest(LINE_CAR_RENTAL);
-    printf("average number in queue = %10.3f\n",transfer[1]);
-    printf("max number in queue = %10.3f\n",transfer[2]);
-    printf("min number in queue = %10.3f\n",transfer[3]);
-
+    printf("\n\nREPORT GENERATED\n\n");
+    fprintf(outfile,"\n\nREPORT\n\n");
+    fprintf(outfile, "Average number in of queue in each location:\n");
     out_filest(outfile, LINE_TERMINAL_1, LINE_CAR_RENTAL);
-        
+    fprintf(outfile, "\n\nlegend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
+
+
     /*
         avg max delay in each queue
     */
