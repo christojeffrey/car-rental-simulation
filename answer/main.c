@@ -1,11 +1,6 @@
 #include "simlib.h"
 #include "main.h"
 
-
-
-
-
-
 // DEFINITION FROM OURSELVES
 // define events
 #define EVENT_BUS_ARRIVE 1 // bus arrive at any location
@@ -498,9 +493,9 @@ void report(void){
     // line terminal 1
     printf("\n\nREPORT GENERATED\n\n");
     fprintf(outfile,"\n\nREPORT\n\n");
-    fprintf(outfile, "Average number in of queue in each location:\n");
+    fprintf(outfile, "report on number in of queue in each location:\n");
     out_filest(outfile, LINE_TERMINAL_1, LINE_CAR_RENTAL);
-    fprintf(outfile, "\n\nlegend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
+    fprintf(outfile, "legend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
 
 
     /*
@@ -508,7 +503,7 @@ void report(void){
     */
     fprintf(outfile, "\n\nDelays in queue, in minutes:\n");
     out_sampst(outfile, SAMPST_LINE_DELAY_TERMINAL_1,SAMPST_LINE_DELAY_CAR_RENTAL);
-    fprintf(outfile, "\n\nlegend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
+    fprintf(outfile, "legend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
     /*
         avg max number on the bus
     */
@@ -517,7 +512,7 @@ void report(void){
     printf("max number in bus = %10.3f\n", transfer[2]);
     printf("min number in bus = %10.3f\n", transfer[3]);
 
-    fprintf(outfile, "\n\nWith %d capacity bus, average number in bus = %10.3f", busCapacity, transfer[1]);
+    fprintf(outfile, "bus capacity statistic:");
     out_filest(outfile, LINE_BUS_ALL, LINE_BUS_ALL);
    
     /*

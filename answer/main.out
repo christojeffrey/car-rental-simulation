@@ -2,7 +2,7 @@
 
 REPORT
 
-Average number in of queue in each location:
+report on number in of queue in each location:
 
   File         Time
  number       average          Maximum          Minimum
@@ -14,8 +14,6 @@ _______________________________________________________
 
     3         7.76750          26.0000          0.00000 
 _______________________________________________________
-
-
 
 
 legend: 
