@@ -37,15 +37,11 @@ ________________________________________________________________________
 ________________________________________________________________________
 
 
-
-
 legend: 
    1 - terminal 1,
    2 - terminal 2,
    3 - car rental
-
-
-With 30 capacity bus, average number in bus =     14.141
+bus capacity statistic:
   File         Time
  number       average          Maximum          Minimum
 _______________________________________________________
