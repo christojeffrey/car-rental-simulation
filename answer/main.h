@@ -13,7 +13,7 @@ double busSpeed = 30; // 30 miles per hour
 const float arrivalRateTerminal1 = 14; // 14 per hour
 const float arrivalRateTerminal2 = 10; // 10 per hour
 const float arrivalRateCarRental = 24; // 24 per hour
-const int busCapacity = 30;
+const int busCapacity = 20;
 const int busWaitingTime = 5; // 5 minutes;
 
 
