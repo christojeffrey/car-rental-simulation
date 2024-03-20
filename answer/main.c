@@ -487,12 +487,11 @@ void forceBusToWait(double nextEventFinishTime){
 
 /* Report generator function. */
 void report(void){
+    printf("\n\nREPORT GENERATED\n\n");
+    fprintf(outfile,"\n\nREPORT\n\n");
     /*
         avg max number in each queue
     */
-    // line terminal 1
-    printf("\n\nREPORT GENERATED\n\n");
-    fprintf(outfile,"\n\nREPORT\n\n");
     fprintf(outfile, "report on number in of queue in each location:\n");
     out_filest(outfile, LINE_TERMINAL_1, LINE_CAR_RENTAL);
     fprintf(outfile, "legend: \n   1 - terminal 1,\n   2 - terminal 2,\n   3 - car rental\n");
@@ -507,10 +506,6 @@ void report(void){
     /*
         avg max number on the bus
     */
-    filest(LINE_BUS_ALL);
-    printf("average number in bus = %10.3f\n", transfer[1]);
-    printf("max number in bus = %10.3f\n", transfer[2]);
-    printf("min number in bus = %10.3f\n", transfer[3]);
 
     fprintf(outfile, "bus capacity statistic:");
     out_filest(outfile, LINE_BUS_ALL, LINE_BUS_ALL);
@@ -518,22 +513,20 @@ void report(void){
     /*
         avg max min time the bus is stopped at each location
     */
-    fprintf(outfile, "\n\nBus stopped at terminal 1, in minutes:\n");
-    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_TERMINAL_1, SAMPST_BUS_STOPPED_AT_TERMINAL_1);
-    fprintf(outfile, "\n\nBus stopped at terminal 2, in minutes:\n");
-    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_TERMINAL_2, SAMPST_BUS_STOPPED_AT_TERMINAL_2);
-    fprintf(outfile, "\n\nBus stopped at car rental, in minutes:\n");
-    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_CAR_RENTAL, SAMPST_BUS_STOPPED_AT_CAR_RENTAL);
-    fprintf(outfile, "\n\nlegend: \n   4 - terminal 1,\n   5 - terminal 2,\n   6 - car rental\n");
+    fprintf(outfile, "\n\nBus stopped at terminal 1, terminal 2 and car rental; in minutes:\n");
+    out_sampst(outfile, SAMPST_BUS_STOPPED_AT_TERMINAL_1, SAMPST_BUS_STOPPED_AT_CAR_RENTAL);
+    fprintf(outfile, "legend: \n   4 - terminal 1,\n   5 - terminal 2,\n   6 - car rental\n");
+
     /*
         avg max min time for the bust to make a loop (car rental to car rental)
     */
     fprintf(outfile, "\n\nTime for the bus to make a loop, in minutes:\n");
     out_sampst(outfile, SAMPST_BUS_MAKE_A_LOOP, SAMPST_BUS_MAKE_A_LOOP);
+
     /*
         avg max min time a person is in the system
     */
     fprintf(outfile, "\n\nTime a person is in the system, in minutes:\n");
     out_sampst(outfile, SAMPST_PASSENGER_IN_SYSTEM_TO_TERMINAL_1, SAMPST_PASSENGER_IN_SYSTEM_TO_CAR_RENTAL);
-    fprintf(outfile, "\n\nlegend: \n   8 - terminal 1,\n   9 - terminal 2,\n   10 - car rental\n");
+    fprintf(outfile, "legend: \n   8 - terminal 1,\n   9 - terminal 2,\n   10 - car rental\n");
 }
